@@ -1,0 +1,117 @@
+version: '3'
+
+services: 
+    common-api:
+        build: https://github.com/ejber-ozkan/common-base-api.git#jaeger-example
+        container_name: common-api
+        image: common-api # usually left to build version #
+        ports:
+            - "8080:8080"
+        networks:
+            - backend
+        restart: always
+        environment:
+            - JAEGER_SERVICE_NAME=common-api
+#            - JAEGER_AGENT_HOST=jaeger
+#            - JAEGER_AGENT_PORT=6831
+            - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+#            - JAEGER_SAMPLER_MANAGER_HOST_PORT=jaeger:5778
+            - JAEGER_SAMPLER_TYPE=const
+            - JAEGER_SAMPLER_PARAM=1
+            - JAEGER_REPORTER_LOG_SPANS=true
+        logging:
+            driver: loki
+            options:
+                loki-url: "http://host.docker.internal:3100/loki/api/v1/push"
+    flask-example:
+        build: https://github.com/ejber-ozkan/python_tracing_example.git#part_2
+        container_name: flask-example
+        ports:
+            - "5000:5000"
+        networks:
+            - backend
+        restart: always
+        environment:
+            - JAEGER_SERVICE_NAME=flask-example
+#            - JAEGER_AGENT_HOST=jaeger
+#            - JAEGER_AGENT_PORT=6831
+            - JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+#            - JAEGER_SAMPLER_MANAGER_HOST_PORT=jaeger:5778
+            - JAEGER_SAMPLER_TYPE=const
+            - JAEGER_SAMPLER_PARAM=1
+            - JAEGER_REPORTER_LOG_SPANS=true
+        logging:
+            driver: loki
+            options:
+                loki-url: "http://host.docker.internal:3100/loki/api/v1/push"
+    grafana:
+        image: grafana/grafana
+        container_name: grafana
+        restart: always
+        ports:
+            - 3000:3000
+        networks:
+            - monitoring
+        volumes:
+            - grafana-volume:/vol01/Docker/monitoring
+    influxdb:
+        image: influxdb
+        container_name: influxdb
+        restart: always
+        ports:
+            - 8086:8086
+        networks:
+            - monitoring
+            - backend
+        volumes:
+            - influxdb-volume:/vol01/Docker/monitoring
+        environment: 
+            - INFLUXDB_HTTP_FLUX_ENABLED=true
+            - INFLUXDB_DB=telegraf
+            - INFLUXDB_USER=telegraf
+            - INFLUXDB_ADMIN_ENABLED=true
+            - INFLUXDB_ADMIN_USER=admin
+            - INFLUXDB_ADMIN_PASSWORD=supersecretpassword 
+    jaeger:
+        image: jaegertracing/all-in-one:latest
+        container_name: jaeger
+        ports:
+            - "9411:9411"
+            - "5775:5775/udp"
+            - "5778:5778"
+            - "6831:6831/udp"
+            - "6832:6832/udp"
+            - "14268:14268"
+            - "16686:16686"
+        networks:
+            - monitoring
+            - backend
+        command: 
+            [ '--log-level=debug']
+    loki:
+        container_name: loki
+        image: grafana/loki:latest
+        ports:
+            - "3100:3100"
+        command: -config.file=/etc/loki/local-config.yaml
+        volumes:
+            - loki-volume:/vol01/Docker/monitoring
+#            - ./volumes/loki/etc:/etc/loki
+        networks:
+            - backend
+            - monitoring
+networks:
+#    default:
+#        driver: custom-driver-1
+    backend:
+        driver: bridge
+    monitoring:
+        driver: bridge
+
+volumes:
+    grafana-volume:
+        external: true
+    influxdb-volume:
+        external: true
+    loki-volume:
+        external: true

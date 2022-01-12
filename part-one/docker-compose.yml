@@ -1,0 +1,20 @@
+version: '3'
+
+# A single container isn't usually the way for a docker compose file,
+# This is just to illustrate further example on how to build and add to it.
+
+services: 
+    common-api:
+        build: https://github.com/ejber-ozkan/common-base-api.git
+        image: common-api # usually left to build version #
+        container_name: common-api
+        ports:
+            - "8080:8080"
+        networks:
+            - backend
+        restart: always
+networks:
+    backend:
+        driver: bridge
+    monitoring:
+        driver: bridge

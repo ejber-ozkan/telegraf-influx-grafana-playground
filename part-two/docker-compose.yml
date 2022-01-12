@@ -1,0 +1,59 @@
+version: '3'
+
+# Multiple containers example, that now adds the Telegraf,InfluxDB and Grafana services (TIG)
+# This is just to illustrate further example on how to build and add to a docker compose yaml file.
+
+services: 
+    common-api:
+        # A container usually should have only one process, but we are cheating a little bit
+        # to have telegraf also installed and running in the api example container
+        # so as to feed metrics from container to container.
+        build: https://github.com/ejber-ozkan/common-base-api.git#telegraf-example
+        container_name: common-api
+        image: common-api # usually left to build version #
+        ports:
+            - "8080:8080"
+        networks:
+            - backend
+        restart: always
+    grafana:
+        image: grafana/grafana
+        container_name: grafana
+        restart: always
+        ports:
+            - 3000:3000
+        networks:
+            - monitoring
+        volumes:
+            - grafana-volume:/vol01/Docker/monitoring
+    influxdb:
+        image: influxdb
+        container_name: influxdb
+        restart: always
+        ports:
+            - 8086:8086
+        networks:
+            - monitoring
+            - backend
+        volumes:
+            - influxdb-volume:/vol01/Docker/monitoring
+        environment: 
+            - INFLUXDB_HTTP_FLUX_ENABLED=true
+            - INFLUXDB_DB=telegraf
+            - INFLUXDB_USER=telegraf
+            - INFLUXDB_ADMIN_ENABLED=true
+            - INFLUXDB_ADMIN_USER=admin
+            - INFLUXDB_ADMIN_PASSWORD=supersecretpassword 
+networks:
+#    default:
+#        driver: custom-driver-1
+    backend:
+        driver: bridge
+    monitoring:
+        driver: bridge
+
+volumes:
+    grafana-volume:
+        external: true
+    influxdb-volume:
+        external: true
